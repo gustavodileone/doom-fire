@@ -1,0 +1,1 @@
+* Para melhorar a performance... Talvez algo relacionado a resolução e bit por pixel?

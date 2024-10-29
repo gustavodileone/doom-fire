@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <unistd.h>
+#include <time.h>
 
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
@@ -79,7 +80,7 @@ void render_doom_fire(DoomFire* f, Program* p) {
             if(bellow_index >= p->width * p->height)
                 continue;
 
-            int decay = f->area[bellow_index] - 1;
+            int decay = f->area[bellow_index] - (rand() % 3);
             f->area[current_index] = decay >= 0 ? decay : 0;
 
             XFreeGC(p->dp, p->gc);
@@ -89,12 +90,6 @@ void render_doom_fire(DoomFire* f, Program* p) {
             XFlush(p->dp);
         }
     }
-
-    // XFreeGC(p->dp, p->gc);
-    // p->gc = XCreateGC(p->dp, p->w, 0, NULL);
-    // XSetForeground(p->dp, p->gc, f->palette[f->area[bellow]]);
-    // XDrawPoint(p->dp, p->w, p->gc, x, y);
-    // XFlush(p->dp);
 }
 
 void update_program_attr(Program* p, XWindowAttributes* attr) {
@@ -134,6 +129,7 @@ void close_program(Program p) {
 }
 
 int main() {
+    srand(time(NULL));
     Program p = init_program();
 
     XEvent e;
@@ -146,6 +142,9 @@ int main() {
     XGetWindowAttributes(p.dp, p.w, &attr);
     update_program_attr(&p, &attr);
 
+    p.width = 250;
+    p.height = 250;
+
     DoomFire f = init_doom_fire(p.width, p.height);
 
     while(1) {
@@ -154,9 +153,6 @@ int main() {
 
         render_doom_fire(&f, &p);
     }
-
-    sleep(15);
-
 
     return EXIT_SUCCESS;
 }
