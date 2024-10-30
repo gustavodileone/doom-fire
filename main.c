@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
-#include <unistd.h>
 #include <time.h>
 
 #include <X11/Xlib.h>
@@ -10,8 +9,9 @@
 typedef struct Program {
     Display* dp;
     Window w;
-    int screen, x, y, width, height;
     GC gc;
+    Pixmap pm;
+    int screen, x, y, width, height;
 } Program;
 
 typedef struct DoomFire {
@@ -77,19 +77,19 @@ void render_doom_fire(DoomFire* f, Program* p) {
         for(int x = 0; x < p->width; x++) {
             int current_index = x + (p->width * y);
             int bellow_index = current_index + p->width;
-            if(bellow_index >= p->width * p->height)
+            if(bellow_index >= f->area_size)
                 continue;
 
             int decay = f->area[bellow_index] - (rand() % 3);
             f->area[current_index] = decay >= 0 ? decay : 0;
 
-            XFreeGC(p->dp, p->gc);
-            p->gc = XCreateGC(p->dp, p->w, 0, NULL);
             XSetForeground(p->dp, p->gc, f->palette[f->area[current_index]]);
-            XDrawPoint(p->dp, p->w, p->gc, x, y);
-            XFlush(p->dp);
+            XDrawPoint(p->dp, p->pm, p->gc, x, y);
         }
     }
+
+    XCopyArea(p->dp, p->pm, p->w, p->gc, 0, 0, p->width, p->height, 0, 0);
+    XSync(p->dp, 0);
 }
 
 void update_program_attr(Program* p, XWindowAttributes* attr) {
@@ -110,17 +110,17 @@ Program init_program() {
     p.width = 500, p.height = 500;
 
     p.w = XCreateSimpleWindow(p.dp, XDefaultRootWindow(p.dp), p.x, p.y, p.width, p.height, 0, BlackPixel(p.dp, p.screen), BlackPixel(p.dp, p.screen));
-    XSetStandardProperties(p.dp, p.w, "Olá mundo", NULL, None, NULL, 0, NULL);
-    XSelectInput(p.dp, p.w, StructureNotifyMask | KeyPressMask);
+    XSetStandardProperties(p.dp, p.w, "Fogo DOOM", NULL, None, NULL, 0, NULL);
+    XSelectInput(p.dp, p.w, StructureNotifyMask);
     XMapWindow(p.dp, p.w);
 
     p.gc = XCreateGC(p.dp, p.w, 0, NULL);
-    XSetForeground(p.dp, p.gc, RGB(255, 0, 0));
 
     return p;
 }
 
 void close_program(Program p) {
+    XFreePixmap(p.dp, p.pm);
     XFreeGC(p.dp, p.gc);
     XDestroyWindow(p.dp, p.w);
     XCloseDisplay(p.dp);
@@ -142,16 +142,20 @@ int main() {
     XGetWindowAttributes(p.dp, p.w, &attr);
     update_program_attr(&p, &attr);
 
-    p.width = 250;
-    p.height = 250;
+    p.pm = XCreatePixmap(p.dp, p.w, p.width, p.height, DefaultDepth(p.dp, p.screen));
 
     DoomFire f = init_doom_fire(p.width, p.height);
+
+    struct timespec t;
+    t.tv_sec = 0;
+    t.tv_nsec = 1000000000 / 60; // 60 FPS
 
     while(1) {
         // XNextEvent(p.dp, &e);
         // if(e.xkey.keycode == 'q') close_program(p);
-
+        
         render_doom_fire(&f, &p);
+        nanosleep(&t, NULL);
     }
 
     return EXIT_SUCCESS;
