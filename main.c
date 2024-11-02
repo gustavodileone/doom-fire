@@ -117,7 +117,7 @@ Program init_program() {
     p.screen = XDefaultScreen(p.dp);
 
     p.x = 0, p.y = 0;
-    p.width = 500, p.height = 500;
+    p.width = 800, p.height = 320;
 
     p.w = XCreateSimpleWindow(p.dp, XDefaultRootWindow(p.dp), p.x, p.y, p.width, p.height, 0, BlackPixel(p.dp, p.screen), BlackPixel(p.dp, p.screen));
     XSetStandardProperties(p.dp, p.w, "Fogo DOOM", NULL, None, NULL, 0, NULL);
