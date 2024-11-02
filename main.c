@@ -72,15 +72,24 @@ DoomFire init_doom_fire(int width, int height) {
     return f;
 }
 
+void update_doom_fire(DoomFire* f, int width, int height) {
+    free(f->area);
+
+    f->area_size = width * height;
+    f->area = malloc(f->area_size * sizeof(unsigned long));
+    for(int i = 0; i < f->area_size; i++) {
+        f->area[i] = i >= (f->area_size - width) ? 35 : 0;
+    }
+}
+
 void render_doom_fire(DoomFire* f, Program* p) {
     for(int y = 0; y < p->height; y++) {
         for(int x = 0; x < p->width; x++) {
             int current_index = x + (p->width * y);
             int bellow_index = current_index + p->width;
-            if(bellow_index >= f->area_size)
-                continue;
+            if(bellow_index >= f->area_size) continue;
 
-            int decay = f->area[bellow_index] - (rand() % 3);
+            int decay = f->area[bellow_index] - (rand() % 2);
             f->area[current_index] = decay >= 0 ? decay : 0;
 
             XSetForeground(p->dp, p->gc, f->palette[f->area[current_index]]);
@@ -92,11 +101,12 @@ void render_doom_fire(DoomFire* f, Program* p) {
     XSync(p->dp, 0);
 }
 
-void update_program_attr(Program* p, XWindowAttributes* attr) {
-    p->width = attr->width;
-    p->height = attr->height;
-    p->x = attr->x;
-    p->y = attr->y;
+void update_program_attr(Program* p) {
+    XWindowAttributes attr;
+    XGetWindowAttributes(p->dp, p->w, &attr);
+
+    p->width = attr.width;
+    p->height = attr.height;
 }
 
 Program init_program() {
@@ -111,7 +121,7 @@ Program init_program() {
 
     p.w = XCreateSimpleWindow(p.dp, XDefaultRootWindow(p.dp), p.x, p.y, p.width, p.height, 0, BlackPixel(p.dp, p.screen), BlackPixel(p.dp, p.screen));
     XSetStandardProperties(p.dp, p.w, "Fogo DOOM", NULL, None, NULL, 0, NULL);
-    XSelectInput(p.dp, p.w, StructureNotifyMask);
+    XSelectInput(p.dp, p.w, StructureNotifyMask | KeyPressMask);
     XMapWindow(p.dp, p.w);
 
     p.gc = XCreateGC(p.dp, p.w, 0, NULL);
@@ -135,12 +145,11 @@ int main() {
     XEvent e;
     while(1) {
         XNextEvent(p.dp, &e);
-        if(e.type == MapNotify) break;
+        if(e.type == MapNotify) {
+            update_program_attr(&p);
+            break;
+        }
     }
-
-    XWindowAttributes attr;
-    XGetWindowAttributes(p.dp, p.w, &attr);
-    update_program_attr(&p, &attr);
 
     p.pm = XCreatePixmap(p.dp, p.w, p.width, p.height, DefaultDepth(p.dp, p.screen));
 
@@ -151,9 +160,22 @@ int main() {
     t.tv_nsec = 1000000000 / 60; // 60 FPS
 
     while(1) {
-        // XNextEvent(p.dp, &e);
-        // if(e.xkey.keycode == 'q') close_program(p);
-        
+        while(XPending(p.dp)) {
+            XNextEvent(p.dp, &e);
+
+            if(e.type == ConfigureNotify && (e.xconfigure.width != p.width || e.xconfigure.height != p.height)) {
+                update_program_attr(&p);
+                XFreePixmap(p.dp, p.pm);
+                p.pm = XCreatePixmap(p.dp, p.w, p.width, p.height, DefaultDepth(p.dp, p.screen));
+                update_doom_fire(&f, p.width, p.height);
+            }
+
+            char text[1];
+            if(e.type == KeyPress && XLookupString(&e.xkey, text, sizeof(text), NULL, NULL) > 0) {
+                if(text[0] == 'q' || text[0] == 'Q') close_program(p);
+            }
+        }
+
         render_doom_fire(&f, &p);
         nanosleep(&t, NULL);
     }
