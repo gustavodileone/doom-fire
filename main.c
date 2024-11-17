@@ -3,10 +3,15 @@
 #include <time.h>
 
 #include <X11/Xlib.h>
+#include <X11/Xutil.h>
 
-#define DEFAULT_WIDTH 500
-#define DEFAULT_HEIGHT 500
-#define FRAMES_PER_SECOND 90
+#define APP_NAME "Doom - Fire Algorithm"
+
+#define ICCCM_DELETE_WINDOW "WM_DELETE_WINDOW"
+
+#define DEFAULT_WIDTH 666
+#define DEFAULT_HEIGHT 666
+#define FRAMES_PER_SECOND 66
 
 typedef struct App {
     Display* dp;
@@ -14,6 +19,8 @@ typedef struct App {
     GC gc;
     Pixmap pm;
     int screen, width, height;
+
+    Atom delete_window;
 } App;
 
 typedef struct Doom {
@@ -120,8 +127,15 @@ App init_app() {
     app.gc = XCreateGC(dp, app.w, 0, NULL);
     app.pm = XCreatePixmap(dp, app.w, app.width, app.height, DefaultDepth(dp, app.screen));
 
+    XSetStandardProperties(dp, app.w, APP_NAME, NULL, None, NULL, 0, NULL);
+
     XSelectInput(dp, app.w, StructureNotifyMask);
     XMapWindow(dp, app.w);
+
+    Atom wm_delete_window = XInternAtom(dp, ICCCM_DELETE_WINDOW, False);
+    XSetWMProtocols(dp, app.w, &wm_delete_window, 1);
+
+    app.delete_window = wm_delete_window;
 
     return app;
 }
@@ -136,23 +150,31 @@ int main() {
     App app = init_app();
     Doom doom = init_doom(app);
 
-    while(1) {
-        if(XPending(app.dp)) {
+    int exit_program = 0;
+    while(!exit_program) {
+        while(XPending(app.dp)) {
             XEvent ev;
             XNextEvent(app.dp, &ev);
 
-            if(ev.type == MapNotify) {
-                XWindowAttributes wattr;
-                XGetWindowAttributes(app.dp, app.w, &wattr);
-                if(wattr.width == app.width && wattr.height == app.height) continue;
-                
-                resize_app(&app, wattr.width, wattr.height);
-                resize_doom(&doom, app.width, app.height);
-            }
+            switch (ev.type) {
+                case MapNotify:
+                    XWindowAttributes wattr;
+                    XGetWindowAttributes(app.dp, app.w, &wattr);
+                    if(wattr.width == app.width && wattr.height == app.height) break;
 
-            if(ev.type == ConfigureNotify && (ev.xconfigure.width != app.width || ev.xconfigure.height != app.height)) {
-                resize_app(&app, ev.xconfigure.width, ev.xconfigure.height);
-                resize_doom(&doom, app.width, app.height);
+                    resize_app(&app, wattr.width, wattr.height);
+                    resize_doom(&doom, app.width, app.height);
+                break;
+
+                case ConfigureNotify:
+                    if(ev.xconfigure.width == app.width && ev.xconfigure.height == app.height) break;
+                    resize_app(&app, ev.xconfigure.width, ev.xconfigure.height);
+                    resize_doom(&doom, app.width, app.height);
+                break;
+
+                case ClientMessage:
+                    if((Atom) ev.xclient.data.l[0] == app.delete_window) exit_program = 1;
+                break;
             }
         }
 
@@ -161,6 +183,5 @@ int main() {
     }
 
     destroy_app(app);
-
     return EXIT_SUCCESS;
 }

@@ -2,6 +2,7 @@
     "files.associations": {
         "types.h": "c",
         "clockid_t.h": "c",
-        "type_traits": "c"
+        "type_traits": "c",
+        "xlib.h": "c"
     }
 }
