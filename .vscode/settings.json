@@ -1,6 +1,7 @@
 {
     "files.associations": {
         "types.h": "c",
-        "clockid_t.h": "c"
+        "clockid_t.h": "c",
+        "type_traits": "c"
     }
 }
