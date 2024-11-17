@@ -11,7 +11,8 @@
 
 #define DEFAULT_WIDTH 666
 #define DEFAULT_HEIGHT 666
-#define FRAMES_PER_SECOND 66
+#define FRAMES_PER_SECOND 60
+#define DEFAULT_WIDTH_REPETITIONS 4
 
 typedef struct App {
     Display* dp;
@@ -67,10 +68,10 @@ Doom init_doom(App app) {
 }
 
 void render_doom(App app, Doom doom) {
-    int four_halves = app.width / 4;
+    int horizontal_rep = app.width / DEFAULT_WIDTH_REPETITIONS;
 
     for(int y = 0; y < app.height; y++) {
-        for(int x = 0; x < four_halves; x++) {
+        for(int x = 0; x < horizontal_rep; x++) {
             int i = x + (y * app.width);
 
             int bellow = i + app.width;
@@ -84,7 +85,7 @@ void render_doom(App app, Doom doom) {
         }
     }
 
-    for(int i = 0; i < app.width; i = i + four_halves) {
+    for(int i = 0; i < app.width; i = i + horizontal_rep) {
         XCopyArea(app.dp, app.pm, app.pm, app.gc, 0, 0, app.width, app.height, i, 0);
     }
 
