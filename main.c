@@ -11,8 +11,8 @@
 
 #define DEFAULT_WIDTH 666
 #define DEFAULT_HEIGHT 666
-#define FRAMES_PER_SECOND 60
-#define DEFAULT_WIDTH_REPETITIONS 4
+#define FRAMES_PER_SECOND 66
+#define DEFAULT_WIDTH_REPETITIONS 6
 
 typedef struct App {
     Display* dp;
@@ -49,10 +49,10 @@ void fill_doom(Doom* doom, int width) {
     }
 }
 
-Doom init_doom(App app) {
+Doom init_doom(int width, int height) {
     Doom doom = {
         palette: { rgb(7, 7, 7), rgb(31, 7, 7), rgb(47, 15, 7), rgb(71, 15, 7), rgb(87, 23, 7), rgb(103, 31, 7), rgb(119, 31, 7), rgb(143, 39, 7), rgb(159, 47, 7), rgb(175, 63, 7), rgb(191, 71, 7), rgb(199, 71, 7), rgb(223, 79, 7), rgb(223, 87, 7), rgb(223, 87, 7), rgb(215, 95, 7), rgb(215, 103, 15), rgb(207, 111, 15), rgb(207, 119, 15), rgb(207, 127, 15), rgb(207, 135, 23), rgb(199, 135, 23), rgb(199, 143, 23), rgb(199, 151, 31), rgb(191, 159, 31), rgb(191, 159, 31), rgb(191, 167, 39), rgb(191, 167, 39), rgb(191, 175, 47), rgb(183, 175, 47), rgb(183, 183, 47), rgb(183, 183, 55), rgb(207, 207, 111), rgb(223, 223, 159), rgb(239, 239, 199), rgb(255, 255, 255) },
-        frame_length: app.width * app.height,
+        frame_length: width * height,
         frame: NULL,
     };
 
@@ -62,7 +62,7 @@ Doom init_doom(App app) {
         exit(EXIT_FAILURE);
     }
 
-    fill_doom(&doom, app.width);
+    fill_doom(&doom, width);
 
     return doom;
 }
@@ -74,7 +74,7 @@ void render_doom(App app, Doom doom) {
         for(int x = 0; x < horizontal_rep; x++) {
             int i = x + (y * app.width);
 
-            int bellow = i + app.width;
+            int bellow = (i + app.width);
             if(bellow >= doom.frame_length) continue;
 
             int decayed = doom.frame[bellow] - (rand() % 2);
@@ -128,6 +128,7 @@ App init_app() {
     app.gc = XCreateGC(dp, app.w, 0, NULL);
     app.pm = XCreatePixmap(dp, app.w, app.width, app.height, DefaultDepth(dp, app.screen));
 
+    // TODO: Use XSetWMProperties() instead
     XSetStandardProperties(dp, app.w, APP_NAME, NULL, None, NULL, 0, NULL);
 
     XSelectInput(dp, app.w, StructureNotifyMask);
@@ -141,15 +142,21 @@ App init_app() {
     return app;
 }
 
-void destroy_app(App app) {
-    XCloseDisplay(app.dp);
+void destroy_doom(Doom* doom) {
+    free(doom->frame);
+    doom->frame = NULL;
+    doom->frame_length = 0;
+}
+
+void destroy_app(App* app) {
+    XCloseDisplay(app->dp);
 }
 
 int main() {
     srand(time(NULL));
 
     App app = init_app();
-    Doom doom = init_doom(app);
+    Doom doom = init_doom(app.width, app.height);
 
     int exit_program = 0;
     while(!exit_program) {
@@ -183,6 +190,7 @@ int main() {
         sleep_by_fps(FRAMES_PER_SECOND);
     }
 
-    destroy_app(app);
+    destroy_doom(&doom);
+    destroy_app(&app);
     return EXIT_SUCCESS;
 }
